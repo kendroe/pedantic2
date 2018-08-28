@@ -40,11 +40,7 @@ open smt_tactic
 --
 -------------------------------------------------------------------
 
-def compose_heaps (h1 : heap) (h2 : heap) (x: ℕ) : option ℕ :=
-    match h1 x with 
-    | option.none   := h2 x
-    | option.some x := option.some x
-    end
+def compose_heaps (h1 h2 : heap) : heap := λ x, h1 x <|> h2 x 
       
 def concreteCompose (s1 : imp_state) (s2 : imp_state) (s : imp_state) : Prop :=
     (s1.snd)=(s2.snd) ∧
@@ -59,10 +55,10 @@ theorem composeEnvPropagate1 :
 begin
     intro, intro, intro, intro, intro,
     unfold concreteCompose at *, destruct a, intros,
-    destruct right,intro, intro, rewrite left_1
+    destruct right,intro, intro, rw left_1
 end.
 
-def composeEnvPropagate2 :
+theorem composeEnvPropagate2 :
     ∀ s1 s2 s v,
     concreteCompose s1 s2 s →
     s2.snd v = s.snd v :=
@@ -99,15 +95,15 @@ def absVar := ℕ
 --def absHeap := (λ h hpred (x : imp_state), (h = x.fst ∧ hpred x.fst ∧
 --               (∀ v, x.snd v=0)))
 
-def bind {ev} := ℕ -> option ev.
-
--- Definition evType := fst.
+--def bind {ev} := ℕ -> option ev.
 
 -- Value is the type used for the values returned when evaluating an absExp
 inductive Value : Type
 | NatValue : ℕ -> Value
 | ListValue : list Value -> Value
 | NoValue : Value
+
+instance : inhabited Value := ⟨Value.NoValue⟩
 
 -- Here is the definition for expressions.
 -- It takes three parameters in defining its semantics:
@@ -124,10 +120,6 @@ inductive Value : Type
 
 -- Special functions for managing separation logic
 
-def test (x : list ℕ) := append x (1::x)
-
-#check test
-
 mutual def rangeSet, rangeSetList
 with rangeSet : Value -> option (list nat)
 | (Value.ListValue ((Value.NatValue loc)::r)) :=
@@ -137,23 +129,18 @@ with rangeSet : Value -> option (list nat)
 with rangeSetList : list Value → (list nat)
 | (f::r) := match rangeSet f
                      with
-                     | some l := (append l (rangeSetList r))
+                     | some l := l++(rangeSetList r)
                      | _     := []
                      end
 | _ := @list.nil ℕ.
 
 def treeRecords (v:Value) : list ℕ :=
-    match rangeSet v with
-    | some x := x
-    | none := list.nil
-    end
+    (rangeSet v).get_or_else []
 
-def inTree (x:Value) (v:Value) :=
-    match x with
-    | (Value.NatValue x) := list.mem x (treeRecords v)
-    | (Value.ListValue ((Value.NatValue x)::_)) := list.mem x (treeRecords v)
-    | _ := false
-    end
+def inTree : Value → Value → Prop
+| (Value.NatValue x) v := x ∈ treeRecords v
+| (Value.ListValue (Value.NatValue x :: _)) v := x ∈ treeRecords v
+| _ v := false
 
 def rangeNumeric : ℕ → ℕ → list ℕ
 | s (e+1) :=
@@ -183,21 +170,19 @@ with fullRangeSetList : list Value → option (list nat)
                      end
 | _ := @list.nil ℕ.
 
-#check 4.
-
-def listmem : ℕ → list ℕ → bool
-| _ list.nil := ff
-| e (list.cons a b) := if beq_nat e a then tt else listmem e b
+--def listmem : ℕ → list ℕ → bool
+--| _ list.nil := ff
+--| e (list.cons a b) := if beq_nat e a then tt else listmem e b
 
 def Rmember : ℕ → Value → bool
 | a v := match (rangeSet v) with
-         | option.some l := listmem a l 
+         | option.some l := a ∈ l 
          | option.none := ff
          end
 
 def Rinclude : ℕ → Value → bool
 | a v := match (fullRangeSet v) with
-         | option.some l := listmem a l 
+         | option.some l := a ∈ l 
          | option.none := ff
          end
 
@@ -221,7 +206,7 @@ def find (n:ℕ) (v:Value) : Value := v.
 
 -- Some auxiliary definitions useful abstract states
 inductive fold_compose : list imp_state → imp_state → Prop
-| FCNil : ∀ x, fold_compose list.nil (empty_heap,x)
+| FCNil : ∀ x, fold_compose list.nil (inhabited.default heap,x)
 | FCCons : ∀ f r state rstate,
              fold_compose r rstate →
              concreteCompose rstate f state →
@@ -247,7 +232,7 @@ inductive Rcell : ℕ → (list ℕ) → heap → ℕ → Prop
   | RCellBase : forall l ll h,
                 Rcell l ll h l
   | RCellNext : forall l ll index (h : heap) n nn,
-                listmem index ll=tt →
+                index ∈ ll=tt →
                 h (n+index)=some nn →
                 Rcell l ll h n →
                 Rcell l ll h nn.
@@ -395,9 +380,9 @@ inductive Path : ℕ → ℕ → list ℕ → Value → Value → Prop
 --
 
 theorem Rmember1 { a:ℕ } { v:Value } { l:list ℕ } :
-        some l = rangeSet v → listmem a l=Rmember a v:= begin
+        some l = rangeSet v → a ∈ l=Rmember a v:= begin
         intros, unfold Rmember, rewrite ← a_1,
-        simp only [Rmember._match_1]
+        simp only [Rmember._match_1], admit
 end
 
 theorem rootIsMemberAux (root:ℕ) (r:list Value) :

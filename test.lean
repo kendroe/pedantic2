@@ -4,6 +4,11 @@ open monad
 open expr
 open smt_tactic
 
+theorem th : ∀ (a:ℕ) (b:ℕ), a ≠ b → (if a=b then 5 else 3)=3 :=
+begin
+    intros, simp *
+end
+
 def f (x : ℕ) := x+1
 
 theorem fsimp : f 0 = 1 :=

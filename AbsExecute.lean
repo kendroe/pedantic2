@@ -38,7 +38,7 @@ def In {A:Type} : A → list A → Prop
 | _ list.nil := false
 | a (b :: m) := b = a ∨ In a m
 
-def absExecute (ff : functions)
+def absExecute (funs : functions)
                (c : com)
                (s : absState)
                (s' : absState)
@@ -47,11 +47,11 @@ def absExecute (ff : functions)
                (exc : ident → ((@absExp ℕ) × absState)) : Prop :=
     ∀ st st' i x,
         realizeState s st →
-        ((∃ st', ∃ r, ceval ff st c st' r) ∧
-         ((ceval ff st c st' func_result.NoResult → realizeState s' st') ∧
-          (ceval ff st c st' (func_result.Return x) →
+        ((∃ st', ∃ r, ceval funs st c st' r) ∧
+         ((ceval funs st c st' func_result.NoResult → realizeState s' st') ∧
+          (ceval funs st c st' (func_result.Return x) →
             ((∀ rx, In rx r → @absEval ℕ (st'.snd) rx = x) ∧ realizeState s'' st')) ∧
-          (ceval ff st c st' (func_result.Exception i x) → (@absEval ℕ (st'.snd) ((exc i).fst) = x ∧ realizeState ((exc i).snd) st'))))
+          (ceval funs st c st' (func_result.Exception i x) → (@absEval ℕ (st'.snd) ((exc i).fst) = x ∧ realizeState ((exc i).snd) st'))))
 
 def hoare_triple (P : absState) (c : com) (Q : absState) (r : list (@absExp ℕ)) (Qr : absState) (exc : ident → ((@absExp ℕ) × absState)) : Prop :=
     absExecute (λ x y z a b, ff) c P Q r Qr exc.
@@ -618,14 +618,14 @@ meta def xxx : expr → expr
 meta def simplify_override : tactic unit :=
 do { t ← target,
      tgt ← instantiate_mvars t,
-     trace "input",
+     trace "input333333",
      trace tgt.to_raw_fmt,
      nt ← some (simplify_override_helper tgt),
      trace "output prelim",
      trace nt.to_raw_fmt,
      trace "testit3",
-     --qq ← some (xxx tgt),
-     --trace qq.to_raw_fmt,
+     qq ← some (xxx tgt),
+     trace qq.to_raw_fmt,
      assert `xxx nt,swap,admit
     }
 meta def simplify_override2 : tactic unit :=
