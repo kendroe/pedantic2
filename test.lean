@@ -1,8 +1,16 @@
+import init.data.option.basic
 
 open tactic
 open monad
 open expr
 open smt_tactic
+
+theorem nonethm {t} : (none <|> none)=@none t:= rfl.
+
+theorem nonethm2 {t} {x:option t} : (x <|> none)=x:= begin
+    cases x;refl
+end
+
 
 theorem th : ∀ (a:ℕ) (b:ℕ), a ≠ b → (if a=b then 5 else 3)=3 :=
 begin

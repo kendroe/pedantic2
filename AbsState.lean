@@ -144,8 +144,8 @@ def inTree : Value → Value → Prop
 
 def rangeNumeric : ℕ → ℕ → list ℕ
 | s (e+1) :=
-    if beq_nat (e+1) s then list.nil
-    else if beq_nat s e then (e::list.nil)
+    if (e+1)=s then list.nil
+    else if s=e then (e::list.nil)
     else e::(rangeNumeric s e)
 | s 0 := list.nil
 
@@ -174,11 +174,13 @@ with fullRangeSetList : list Value → option (list nat)
 --| _ list.nil := ff
 --| e (list.cons a b) := if beq_nat e a then tt else listmem e b
 
-def Rmember : ℕ → Value → bool
+def Rmember : ℕ → Value → Prop
 | a v := match (rangeSet v) with
          | option.some l := a ∈ l 
          | option.none := ff
          end
+
+instance : has_mem ℕ Value := ⟨Rmember⟩
 
 def Rinclude : ℕ → Value → bool
 | a v := match (fullRangeSet v) with
@@ -212,13 +214,15 @@ inductive fold_compose : list imp_state → imp_state → Prop
              concreteCompose rstate f state →
              fold_compose (f::r) state
 
-inductive allFirsts {t1} {t2} : list t1 → list (t1 × t2) → Prop
-| AFNil : allFirsts list.nil list.nil
-| AFCons : ∀ fx fy r r', allFirsts r r' → allFirsts (fx::r) ((fx,fy)::r')
+--inductive allFirsts {t1} {t2} : list t1 → list (t1 × t2) → Prop
+--| AFNil : allFirsts list.nil list.nil
+--| AFCons : ∀ fx fy r r', allFirsts r r' → allFirsts (fx::r) ((fx,fy)::r')
 
-inductive allSeconds {t1} {t2} : list t1 → list (t2 × t1) → Prop
-  | ASNil : allSeconds list.nil list.nil
-  | ASCons : ∀ fx fy r r', allSeconds r r' → allSeconds (fy::r) ((fx,fy)::r').
+--def allFirsts {t1 t2} (l1 : list t1) (l2 : list (t1 × t2)) : Prop := l2.map prod.fst = l1
+
+--inductive allSeconds {t1} {t2} : list t1 → list (t2 × t1) → Prop
+--  | ASNil : allSeconds list.nil list.nil
+--  | ASCons : ∀ fx fy r r', allSeconds r r' → allSeconds (fy::r) ((fx,fy)::r').
 
 inductive anyHeap : ℕ → ℕ → heap → Prop
     | AnyHeapBase : ∀ start,
@@ -226,7 +230,7 @@ inductive anyHeap : ℕ → ℕ → heap → Prop
     | AnyHeapNext : ∀ start next heap y,
                     anyHeap (start+1) next heap ->
                     anyHeap start (next+1)
-                            (λ x, if beq_nat x start then some y else heap x).
+                            (λ x, if x=start then some y else heap x).
 
 inductive Rcell : ℕ → (list ℕ) → heap → ℕ → Prop
   | RCellBase : forall l ll h,
@@ -264,18 +268,18 @@ def findIndex : ℕ → heap → list (nat × heap × Value) → Value
              | some x := Value.NatValue x
              | none   := Value.NatValue 0
              end
-| n h ((nn,hh,v)::r) := if beq_nat n nn then v else findIndex n h r
+| n h ((nn,hh,v)::r) := if n=nn then v else findIndex n h r
 
 def buildList : ℕ → ℕ → heap → list (nat ×  heap ×  Value) → list Value
 | i 0 h l := list.nil
 | i (s+1) h l := (findIndex i h l)::(buildList (i+1) s h l)
 
-inductive ihmem : ℕ → heap → Value → list (ℕ × heap × Value) → Prop
-| IHBase : ∀ (n : ℕ) (h : heap) (v : Value) (hl : list (ℕ × heap × Value)),
-            ihmem n h v ((n,h,v)::hl)
-| IHNext : ∀ n h v f hl,
-             ihmem n h v hl →
-             ihmem n h v (f::hl).
+--inductive ihmem : ℕ → heap → Value → list (ℕ × heap × Value) → Prop
+--| IHBase : ∀ (n : ℕ) (h : heap) (v : Value) (hl : list (ℕ × heap × Value)),
+--            ihmem n h v ((n,h,v)::hl)
+--| IHNext : ∀ n h v f hl,
+--             ihmem n h v hl →
+--             ihmem n h v (f::hl).
 
 --
 -- Recursive definition for the TREE construct--used in the definition of basicState
@@ -293,7 +297,7 @@ inductive Tree : ℕ → ℕ → (list ℕ) → Value → heap → Prop
             anyHeap root size h0 →
             heapWithIndexList indices heaps values ihlist →
             not(root=0) →
-            (∀ i h v x, ihmem i h v ihlist → some x=h0 (root+x) → Tree x size indices v h) →
+            (∀ i h v x, (i,h,v) ∈ ihlist → some x=h0 (root+x) → Tree x size indices v h) →
             mergeHeaps heaps h1 →
             (∀ l, (h1 l=none ∨ h0 l=none)) →
             heap = combine_heap h1 h0 ->
@@ -311,7 +315,7 @@ inductive anyHeapv : ℕ → ℕ → heap → (list Value) → Prop
 | AnyHeapvBase : ∀ start, anyHeapv start 0 (λ x, none) list.nil
 | AnyHeapvNext : ∀ start next heap y r,
                      anyHeapv (start+1) next heap r →
-                     anyHeapv start (next+1) (λ x, if beq_nat x start then some y else heap x)
+                     anyHeapv start (next+1) (λ x, if x=start then some y else heap x)
                                     ((Value.NatValue y)::r).
 
 inductive valueIndexList : (list ℕ) → (list Value) → (list (ℕ × Value)) → Prop
@@ -343,14 +347,14 @@ inductive updateRec : list (nat × Value) → ℕ → list Value → list Value 
           updateRec vl (n+1) or nr →
           updateRec vl n ((Value.ListValue ((Value.NatValue x)::rr))::or) ((Value.NatValue x)::or).
 
-def nth {t} : ℕ → list t → t → t
-| 0 (f::r) d := f
-| (n+1) (f::r) d := nth n r d
-| _ _ d := d.
+--def nth {t} : ℕ → list t → t → t
+--| 0 (f::r) d := f
+--| (n+1) (f::r) d := nth n r d
+--| _ _ d := d.
 
-def nthval: ℕ → Value → Value
-| n (Value.ListValue l) := nth x l Value.NoValue
-| _ _ := Value.NoValue
+--def nthval: ℕ → Value → Value
+--| n (Value.ListValue l) := nth x l Value.NoValue
+--| _ _ := Value.NoValue
 
 inductive Path : ℕ → ℕ → list ℕ → Value → Value → Prop
   | PathNext : ∀ (root : ℕ) (size : ℕ) indices (baseData : Value) rec vals ivals rec2,
@@ -380,22 +384,21 @@ inductive Path : ℕ → ℕ → list ℕ → Value → Value → Prop
 --
 
 theorem Rmember1 { a:ℕ } { v:Value } { l:list ℕ } :
-        some l = rangeSet v → a ∈ l=Rmember a v:= begin
+        some l = rangeSet v → (a ∈ l)=(a ∈ v):= begin
         intros, unfold Rmember, rewrite ← a_1,
         simp only [Rmember._match_1], admit
 end
 
 theorem rootIsMemberAux (root:ℕ) (r:list Value) :
-        Rmember root (Value.ListValue (Value.NatValue root :: r)) = to_bool true :=
+        root ∈ (Value.ListValue (Value.NatValue root :: r)) = to_bool true :=
 begin
-    rewrite ← Rmember1, swap, unfold rangeSet,refl,
-    unfold listmem, rw beq_refl, simp
+    rewrite ← Rmember1, swap, unfold rangeSet,refl,simp
 end
 
 theorem rootIsMember : forall root size fields heap (v : Value),
     root ≠ 0 ->
     Tree root size fields v heap ->
-    Rmember root v=true := begin
+    root ∈ v := begin
     intros, cases a_1,
     rw rootIsMemberAux, simp at a, cases a
 end
@@ -456,7 +459,7 @@ def absCell : (env → ℕ) → (env → ℕ) → imp_state → Prop
 def absUpdateLoc : (env → ℕ) → (env → ℕ) → (imp_state → Prop) → imp_state → Prop
 | loc val s str := ∀ st, s st →
                    (st.snd = str.snd ∧
-                    str.fst = (λ v, if beq_nat v (loc st.snd) then val st.snd else (st.fst) v)).
+                    str.fst = (λ v, if v=(loc st.snd) then val st.snd else (st.fst) v)).
 
 def absUpdateState : (imp_state → Prop) → (imp_state → Prop) → (imp_state → Prop) → (imp_state → Prop)
 | s m p := absCompose (absMagicWand s m) p.

@@ -45,7 +45,8 @@ theorem initWorks: {{precondition}} initCode {{ afterAssigns }} := begin
     unfold initCode, unfold precondition,
     apply strengthenPost,
     apply compose, apply compose,
-    apply assignPropagate, evaluate_aeval, simplify_override,
+    apply assignPropagate,
+simp [aeval, A0,A1,A2,A3,A4,A5,A6], simplify_override,
     simplify_override2, simplify_override_predicate,
     simplify_tree, conv
     begin

@@ -105,8 +105,6 @@ begin
     simp *
 end
 
-/---------------------------------------------------------------------------/
-
 inductive aexp : Type
   | Num : ℕ → aexp
   | Var : ident → aexp
@@ -129,17 +127,17 @@ def A4 := (aexp.Num 4)
 def A5 := (aexp.Num 5)
 def A6 := (aexp.Num 6)
 
-infix `***`:50 := aexp.AMult
+infix `***`:50 := aexp.Mult
 
-infix `-*-`:40 := aexp.AMinus
+infix `-*-`:40 := aexp.Minus
 
-infix `+++`:40 := aexp.APlus
+infix `+++`:40 := aexp.Plus
 
-notation `!`:30 X := aexp.AVar X
+notation `!`:30 X := aexp.Var X
 
-infix `===`:60 := aexp.AEq
+infix `===`:60 := aexp.Eq
 
-infix `<<=`:60 := aexp.ALe
+infix `<<=`:60 := aexp.Le
 
 definition x := 0
 definition y := 1
@@ -162,16 +160,16 @@ inductive com : Type
   | Throw : ident -> aexp -> com
   | Catch : ident -> ident -> com -> com -> com.
 
-notation  `SKIP` := com.CSkip.
-infix `;` := com.CSeq.
-notation l `::=`:60 v `-*->`:60 i := com.CLoad l v i.
-notation l `-*->`:60 i `::=`:60 v := com.CStore l i v.
-notation l `::=`:60 a := com.CAss l a.
-notation `NEW `:60 v `, ` s := com.CNew v s.
-notation `DELETE `:60 e `, ` s := com.CDelete e s.
-notation `WHILE `:80 b ` DO ` c ` LOOP `:80 := com.CWhile b c.
-notation `IF `:80 e1 ` THEN ` e2 ` ELSE `:80 e3 ` FI`:80 := com.CIf e1 e2 e3.
-notation `RETURN `:60 e := com.CReturn e.
+notation  `SKIP` := com.Skip.
+infix `;` := com.Seq.
+notation l `::=`:60 v `-*->`:60 i := com.Load l v i.
+notation l `-*->`:60 i `::=`:60 v := com.Store l i v.
+notation l `::=`:60 a := com.Ass l a.
+notation `NEW `:60 v `, ` s := com.New v s.
+notation `DELETE `:60 e `, ` s := com.Delete e s.
+notation `WHILE `:80 b ` DO ` c ` LOOP `:80 := com.While b c.
+notation `IF `:80 e1 ` THEN ` e2 ` ELSE `:80 e3 ` FI`:80 := com.If e1 e2 e3.
+notation `RETURN `:60 e := com.Return e.
 
 
 -- Shorthand for common variable names
@@ -337,43 +335,4 @@ inductive ceval : functions -> imp_state -> com -> imp_state -> func_result -> P
       f fid st vl st' (func_result.Exception name r) →
       ceval f st (com.Call var fid el) st' (func_result.Exception name r).
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#check override
-
-
-
-#check bool.tt
-
-#check id
-#check id
-
-#print notation
-theorem and_commutative (p q :Prop): p ∧ q → q ∧ p :=
-begin
-assume hpq : p ∧ q,
-have hp : p, from and.left hpq,
-have hq : q, from and.right hpq,
-show q ∧ p, from and.intro hq hp
-end
 

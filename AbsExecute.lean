@@ -34,9 +34,9 @@ open smt_tactic
 
 -------------------------------------------------------------------
 
-def In {A:Type} : A → list A → Prop
-| _ list.nil := false
-| a (b :: m) := b = a ∨ In a m
+--def In {A:Type} : A → list A → Prop
+--| _ list.nil := false
+--| a (b :: m) := b = a ∨ In a m
 
 def absExecute (funs : functions)
                (c : com)
@@ -50,7 +50,7 @@ def absExecute (funs : functions)
         ((∃ st', ∃ r, ceval funs st c st' r) ∧
          ((ceval funs st c st' func_result.NoResult → realizeState s' st') ∧
           (ceval funs st c st' (func_result.Return x) →
-            ((∀ rx, In rx r → @absEval ℕ (st'.snd) rx = x) ∧ realizeState s'' st')) ∧
+            ((∀ rx, rx ∈ r → @absEval ℕ (st'.snd) rx = x) ∧ realizeState s'' st')) ∧
           (ceval funs st c st' (func_result.Exception i x) → (@absEval ℕ (st'.snd) ((exc i).fst) = x ∧ realizeState ((exc i).snd) st'))))
 
 def hoare_triple (P : absState) (c : com) (Q : absState) (r : list (@absExp ℕ)) (Qr : absState) (exc : ident → ((@absExp ℕ) × absState)) : Prop :=
@@ -62,25 +62,29 @@ notation `{{ ` P ` }} ` c ` {{ ` Q ` return ` rr ` with ` QQ ` }}` := (hoare_tri
 theorem override_equal : ∀ env v, override env v (env v)=env :=
 begin
     intros, unfold override, funext,
-    generalize h:beq_nat v l=qq,
-    cases qq, simp, simp,
-    have hh:v=l, apply beq_nat_eq, apply h, rw hh
+    by_cases (v=l),rewrite h,simp,
+    simp [h]
 end
 
-theorem fun_ext {t} {u} :
-    ∀ (a:t→u) (b:t→u), a=b → (λ (x:t), a)=(λ (x:t), b) :=
-begin
-    assume a b h, by rw h
-end
+--theorem fun_ext {t} {u} :
+--    ∀ (a:t→u) (b:t→u), a=b → (λ (x:t), a)=(λ (x:t), b) :=
+--begin
+--    assume a b h, by rw h
+--end
 
 theorem double_override : ∀ env v v1 v2, override (override env v v1) v v2=override env v v2 :=
 begin
     intros, unfold override,
-    have h:(∀ l, (ite ↥(beq_nat v l) v2 (ite ↥(beq_nat v l) v1 (env l)))=
-            ite ↥(beq_nat v l) v2 (env l)),
-    intros, generalize :(beq_nat v l)=bb,
+    have h:(∀ l, (ite (v=l) v2 (ite (v=l) v1 (env l)))=
+            ite (v=l) v2 (env l)),
+    intros, by_cases (v=l), rewrite h, simp,
+    simp [h], simp only [h]
+end
 
-    cases bb, simp, simp, simp only [h]
+theorem nonethm {t} : (none <|> none)=@none t:= rfl.
+
+theorem nonethm2 {t} {x:option t} : (x <|> none)=x:= begin
+    cases x;refl
 end
 
 theorem assignPropagate: ∀ (P : absState) (v:ℕ) e xx,
@@ -94,7 +98,7 @@ begin
     unfold hoare_triple, intros, unfold absExecute,
     intros, split,
 
-    existsi _, existsi _, apply ceval.CEAss,
+    existsi _, existsi _, apply ceval.Ass,
 
     unfold realizeState at a, split, intro, cases a_1,
     
@@ -111,19 +115,24 @@ begin
          override ((st.fst, override (st.snd) v (aeval (st.snd) e)).snd) v (st.snd v)),
     
     simp,split, unfold absPredicate, simp, rewrite double_override,
-    rw override_equal, unfold override, rw beq_refl, simp,
+    rw override_equal, unfold override, simp,
 
     simp, rw double_override, rw override_equal,
     unfold concreteCompose, simp, split,
 
-    intro, right, unfold empty_heap,
+    intro, right, unfold empty_heap, unfold inhabited.default,
+    unfold empty_heap, unfold inhabited.default,
+    unfold compose_heaps, simp only [nonethm2],
 
-    cases st, simp, have h:(∀ x, compose_heaps st_fst empty_heap x = st_fst x),
+    --cases st, have h:(∀ x, compose_heaps st.fst empty_heap x = st.fst x),
 
-    intro, unfold compose_heaps, generalize el:(st_fst x_1)=qq,
-    cases qq, simp only [compose_heaps._match_1],
-    unfold empty_heap, simp only [compose_heaps._match_1],
-    tactic.funext,apply h,
+    --intro, unfold compose_heaps, generalize el:(st.fst x_1)=qq,
+    --cases qq, unfold empty_heap, unfold inhabited.default,
+    --apply nonethm,
+  
+    --unfold empty_heap, unfold inhabited.default,
+    --simp only [compose_heaps._match_1],
+    --tactic.funext,apply h,
 
     split, intros, split, intros, cases a_2, cases a_1,
     intros, cases a_1
@@ -141,7 +150,7 @@ theorem strengthenPost : ∀ (R : absState) (P : absState) (Q : absState) (C : c
     unfold hoare_triple, unfold absExecute,
     intros,
     specialize a st st' i x,
-    simp only [In], simp only [In] at a, simp at a, simp,
+    simp, simp at a,
     have hh:((∃ (st' : imp_state),
        Exists
          (ceval (λ (x : ident) (y : imp_state) (z : list ℕ) (a : imp_state) (b : func_result), false) st C st')) ∧
@@ -167,9 +176,9 @@ theorem strengthenPost : ∀ (R : absState) (P : absState) (Q : absState) (C : c
     apply hh_right_right_right, apply a_3
 end
 
-theorem nilmem {t} (x : t) : In x list.nil=false :=
+theorem nilmem {t} (x : t) : x ∈ @list.nil t=false :=
 begin
-    unfold In
+    simp
 end
 
 theorem rsfalse { st : imp_state} : realizeState absNone st=false :=
@@ -185,13 +194,13 @@ end
 theorem compose : forall (P:absState) c1 c2 Q R,
     {{ P }} c1 {{ Q }} →
     {{ Q }} c2 {{ R }} →
-    {{ P }} (com.CSeq c1 c2) {{ R }} := begin
+    {{ P }} (com.Seq c1 c2) {{ R }} := begin
     intros, unfold hoare_triple at a, unfold hoare_triple at a_1,
     unfold absExecute at a, unfold absExecute at a_1,
     unfold hoare_triple, unfold absExecute,
     intros,
-    simp only [In] at a_1, simp only [In] at a,simp at a_1, simp at a,
-    simp only [In], simp,
+    simp at a_1, simp at a,
+    simp,
      simp only [rsfalse] at a, simp only [andfalse] at a,
      simp only [rsfalse] at a_1, simp only [andfalse] at a_1,
 
@@ -247,16 +256,16 @@ theorem compose : forall (P:absState) c1 c2 Q R,
     cases aa1, cases aa1_left, cases aa1_left_h,
 
     existsi aa1_left_w, existsi aa1_left_h_w,
-    apply ceval.CESeq1, apply aaa_left_h_h,
+    apply ceval.Seq1, apply aaa_left_h_h,
     --specialize a_1 aaa_left_w st' i x,
 
     apply aa1_left_h_h,
 
     existsi _, existsi _,
-    apply ceval.CESeq2, apply aaa_left_h_h, 
+    apply ceval.Seq2, apply aaa_left_h_h, 
 
     existsi _, existsi _,
-    apply ceval.CESeq3, apply aaa_left_h_h,
+    apply ceval.Seq3, apply aaa_left_h_h,
 
     split,
     intros, 
@@ -338,41 +347,41 @@ end
 
 
 meta def evaluate_aeval_helper : expr → expr
-| `(aeval %%e (aexp.ANum %%x)) := x
-| `(aeval %%e (aexp.AVar %%v)) := e v
-| `(aeval %%e (aexp.APlus %%x %%y)) :=
+| `(aeval %%e (aexp.Num %%x)) := x
+| `(aeval %%e (aexp.Var %%v)) := e v
+| `(aeval %%e (aexp.Plus %%x %%y)) :=
        (app (app 
            `(nat.add)
             (evaluate_aeval_helper `(aeval %%e %%x)))
             (evaluate_aeval_helper `(aeval %%e %%y)))
-| `(aeval %%e (aexp.AMinus %%x %%y)) :=
+| `(aeval %%e (aexp.Minus %%x %%y)) :=
        (app (app 
            `(nat.sub)
             (evaluate_aeval_helper `(aeval %%e %%x)))
             (evaluate_aeval_helper `(aeval %%e %%y)))
-| `(aeval %%e (aexp.AMult %%x %%y)) :=
+| `(aeval %%e (aexp.Mult %%x %%y)) :=
        (app (app 
            `(nat.mul)
             (evaluate_aeval_helper `(aeval %%e %%x)))
             (evaluate_aeval_helper `(aeval %%e %%y)))
-| `(aeval %%e (aexp.AEq %%x %%y)) :=
-       (app (app 
-           `(beq_nat)
-            (evaluate_aeval_helper `(aeval %%e %%x)))
-            (evaluate_aeval_helper `(aeval %%e %%y)))
-| `(aeval %%e (aexp.ALe %%x %%y)) :=
-       (app (app 
-           `(ble_nat)
-            (evaluate_aeval_helper `(aeval %%e %%x)))
-            (evaluate_aeval_helper `(aeval %%e %%y)))
+--| `(aeval %%e (aexp.Eq %%x %%y)) :=
+--       (app (app 
+--           `(beq_nat)
+--            (evaluate_aeval_helper `(aeval %%e %%x)))
+--            (evaluate_aeval_helper `(aeval %%e %%y)))
+--| `(aeval %%e (aexp.Le %%x %%y)) :=
+--       (app (app 
+--           `(ble_nat)
+--            (evaluate_aeval_helper `(aeval %%e %%x)))
+--            (evaluate_aeval_helper `(aeval %%e %%y)))
 --| `(aeval %%e (aexp.ALand %%x %%y)) :=
 --      (app (app (app `(ite)
 --                     (app (app `(beq_nat) `(aeval %%e %%x)) `(0)))
 --                     `(0))
 --                     `(aeval %%e %%y))
-| `(aeval %%e (aexp.ALand %%x %%y)) := `(if beq_nat (aeval %%e %%x) 0 then 0 else (aeval %%e %%y))
-| `(aeval %%e (aexp.ALor %%x %%y)) := `(if beq_nat (aeval %%e %%x) 0 then (aeval %%e %%y) else (aeval %%e %%x))
-| `(aeval %%e (aexp.ALnot %%x)) := `(if beq_nat (aeval %%e %%x) 0 then 1 else 0)
+| `(aeval %%e (aexp.Land %%x %%y)) := `(if (aeval %%e %%x)=0 then 0 else (aeval %%e %%y))
+| `(aeval %%e (aexp.Lor %%x %%y)) := `(if (aeval %%e %%x)=0 then (aeval %%e %%y) else (aeval %%e %%x))
+| `(aeval %%e (aexp.Lnot %%x)) := `(if (aeval %%e %%x)=0 then 1 else 0)
 | `(aeval %%e A0) := `(0)
 | `(aeval %%e A1) := `(1)
 | `(aeval %%e A2) := `(2)
@@ -488,7 +497,7 @@ meta def simplify_override_helper2 : expr → expr
 | x := x
 
 meta def replace_varn_helper : ℕ → expr → expr → expr
-| n r (expr.var nn) := if beq_nat n nn then r else (expr.var nn)
+| n r (expr.var nn) := if n=nn then r else (expr.var nn)
 | n r (expr.app a b) := expr.app (replace_varn_helper n r a) (replace_varn_helper n r b)
 | n r (expr.lam v b t e) := expr.lam v b (replace_varn_helper (n+1) r t) (replace_varn_helper (n+1) r e)
 | n r (expr.pi v b t e) := expr.pi v b (replace_varn_helper n r t) (replace_varn_helper n r e)
@@ -542,9 +551,9 @@ meta def beq_exp : expr → expr → bool
 
 meta def update_state_reference : ℕ → expr → option expr
 | n (expr.app (expr.app (expr.app ps hhh) eee) (expr.var (n1))) :=
-      if beq_nat (n+1) n1 then some (expr.var n) else none
+      if (n+1)=n1 then some (expr.var n) else none
 | n (expr.var n1) :=
-  if beq_nat (n+1) n1 then none else some (expr.var n1)
+  if (n+1)=n1 then none else some (expr.var n1)
 | n (expr.app a b) := match update_state_reference n a with
                       | none := none
                       | some aa := match update_state_reference n b with
