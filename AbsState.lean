@@ -385,8 +385,8 @@ inductive Path : ℕ → ℕ → list ℕ → Value → Value → Prop
 
 theorem Rmember1 { a:ℕ } { v:Value } { l:list ℕ } :
         some l = rangeSet v → (a ∈ l)=(a ∈ v):= begin
-        intros, unfold Rmember, rewrite ← a_1,
-        simp only [Rmember._match_1], admit
+        intros, unfold has_mem.mem, unfold Rmember, rewrite ← a_1,
+        simp only [Rmember._match_1], unfold has_mem.mem
 end
 
 theorem rootIsMemberAux (root:ℕ) (r:list Value) :
@@ -400,7 +400,7 @@ theorem rootIsMember : forall root size fields heap (v : Value),
     Tree root size fields v heap ->
     root ∈ v := begin
     intros, cases a_1,
-    rw rootIsMemberAux, simp at a, cases a
+    rw rootIsMemberAux, simp, simp at a, cases a
 end
 
 inductive strip_nat_values : (list Value) -> (list ℕ) -> Prop
