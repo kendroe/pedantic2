@@ -66,12 +66,15 @@ by unfold ident; apply_instance
 def override (st : env) (v : ident) (n : ℕ) : env :=
     (λ (l : ident), if v=l then n else (st l))
 
-theorem override_eq (n : ℕ) (V : ident) (st : env) : (override st V n) V=n :=
+def override_state (v : ident) (n : ℕ) (st : imp_state) : imp_state :=
+    (st.fst,override st.snd v n)
+
+@[simp] theorem override_eq (n : ℕ) (V : ident) (st : env) : (override st V n) V=n :=
 begin
     unfold override, simp
 end
 
-theorem override_neq (n : ℕ) (V1 : ident) (V2 : ident) (st : env) :
+@[simp] theorem override_neq (n : ℕ) (V1 : ident) (V2 : ident) (st : env) :
     V2 ≠ V1 →
     (override st V2 n) V1=st V1 := begin
     unfold override, intro, simp *

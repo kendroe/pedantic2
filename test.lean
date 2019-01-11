@@ -48,16 +48,31 @@ end
 meta def simplifyProd : expr → expr
 | (expr.app
     (expr.app
-      (expr.app `(prod.fst) tt1a)
+      (expr.app `(@prod.fst) tt1a)
       tt1b)
      (expr.app
         (expr.app
           (expr.app 
-            (expr.app `(prod.mk) tt1) tt2) a) b)) := a
+            (expr.app `(@prod.mk) tt1) tt2) a) b)) := a
 --| `((λ x, (%%f) x) (%%z)) := `(%%f (%%z+1))
 | (expr.app a b) := expr.app (simplifyProd a) (simplifyProd b)
 | (expr.lam v b t e) := expr.lam v b (simplifyProd t) (simplifyProd e)
 | (expr.pi v b t e) := expr.pi v b (simplifyProd t) (simplifyProd e)
+| x := x
+
+meta def simplifyProd2 : expr → expr
+| (expr.app
+    (expr.app
+      (expr.app pf tt1a)
+      tt1b)
+     (expr.app
+        (expr.app
+          (expr.app 
+            (expr.app pm tt1) tt2) a) b)) := a
+--| `((λ x, (%%f) x) (%%z)) := `(%%f (%%z+1))
+| (expr.app a b) := expr.app (simplifyProd2 a) (simplifyProd2 b)
+| (expr.lam v b t e) := expr.lam v b (simplifyProd2 t) (simplifyProd2 e)
+| (expr.pi v b t e) := expr.pi v b (simplifyProd2 t) (simplifyProd2 e)
 | x := x
 
 theorem testit (f:ℕ) (s:ℕ) :
@@ -65,9 +80,10 @@ theorem testit (f:ℕ) (s:ℕ) :
 begin
    do {
        t ← target,
-       trace "Start",
+       trace "Start2",
        trace t.to_raw_fmt,
        tq ← some (simplifyProd t),
+       trace "Finish2",
        trace tq.to_raw_fmt,
        assert `hhhq tq,tactic.swap,admit
    },
@@ -359,5 +375,5 @@ do { ctx ← local_context,
        exact h }
    <|> fail "assumption tactic failed".
 
-def g (x:ℕ) := (x+2)
-def f (x:ℕ) := (x+1)
+--def g (x:ℕ) := (x+2)
+--def f (x:ℕ) := (x+1)

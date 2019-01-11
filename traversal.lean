@@ -56,13 +56,20 @@ open smt_tactic
 --    admit
 --end
 
-@[simp] theorem dist_exists {t} {a : absState} {v:ident} {e:ℕ} :
-       (λ (st : imp_state), 
-              (@absExists t (λ (x:t), a) (st.fst, override (st.snd) v e)))=
-       @absExists t (λ (x:t), (λ (st : imp_state), a (st.fst, override (st.snd) v e))) :=
-begin
-    admit
-end
+--@[simp] theorem dist_exists {t} {a : absState} {v:ident} {e:ℕ} :
+--       (λ (st : imp_state), 
+--              (@absExists t (λ (x:t), a) (st.fst, override (st.snd) v e)))=
+--       @absExists t (λ (x:t), (λ (st : imp_state), a (st.fst, override (st.snd) v e))) :=
+--begin
+--    admit
+--end
+
+
+--@[simp] theorem beta_x (t:Type) (r:Type) (v:t) (a : t → r) :
+--    (λ (v:t), a v) = a :=
+--begin
+--    admit
+--end
 
 theorem initWorks: {{precondition}} initCode {{ afterAssigns }} := begin
     unfold initCode, unfold precondition,
@@ -70,8 +77,14 @@ theorem initWorks: {{precondition}} initCode {{ afterAssigns }} := begin
     apply compose, apply compose,
     apply assignPropagate, 
     dsimp [aeval, A0,A1,A2,A3,A4,A5,A6], simp,
-    simplify_override2, simplify_override_predicate,
-    simplify_tree,
+    unfold I, unfold RR, unfold override, have : 2=1, sorry, simp [if_neg,*],
+    --simplify_override,
+    --simplify_override,
+    --simplify_override2, simplify_override_predicate,
+    --simplify_tree,
 end.
+
+
+
 
 

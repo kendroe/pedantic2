@@ -92,9 +92,11 @@ theorem assignPropagate: ∀ (P : absState) (v:ℕ) e xx,
           (absExists
               (λ vv, ( (λ st, (P  ** (absPredicate (λ ee, aeval ee e=st.snd v)))
                        
-                       (st.fst,override st.snd v vv))
+                       (override_state v vv st))
            ))) [] absNone xx :=
 begin
+    unfold override_state,
+    
     unfold hoare_triple, intros, unfold absExecute,
     intros, split,
 
@@ -350,17 +352,17 @@ meta def evaluate_aeval_helper : expr → expr
 | `(aeval %%e (aexp.Num %%x)) := x
 | `(aeval %%e (aexp.Var %%v)) := e v
 | `(aeval %%e (aexp.Plus %%x %%y)) :=
-            `(%%(evaluate_aeval_helper `(aeval %%e %%x))+
-              %%(evaluate_aeval_helper `(aeval %%e %%y)))
+            `((%%(evaluate_aeval_helper `(aeval %%e %%x))) +
+              (%%(evaluate_aeval_helper `(aeval %%e %%y))))
 | `(aeval %%e (aexp.Minus %%x %%y)) :=
-            `(%%(evaluate_aeval_helper `(aeval %%e %%x))-
-              %%(evaluate_aeval_helper `(aeval %%e %%y)))
+            `((%%(evaluate_aeval_helper `(aeval %%e %%x))) -
+              (%%(evaluate_aeval_helper `(aeval %%e %%y))))
 | `(aeval %%e (aexp.Mult %%x %%y)) :=
-            `(%%(evaluate_aeval_helper `(aeval %%e %%x))*
-              %%(evaluate_aeval_helper `(aeval %%e %%y)))
+            `((%%(evaluate_aeval_helper `(aeval %%e %%x))) *
+              (%%(evaluate_aeval_helper `(aeval %%e %%y))))
 | `(aeval %%e (aexp.Eq %%x %%y)) :=
-           `(%%(evaluate_aeval_helper `(aeval %%e %%x))=
-             %%(evaluate_aeval_helper `(aeval %%e %%y)))
+           `((%%(evaluate_aeval_helper `(aeval %%e %%x))) =
+             (%%(evaluate_aeval_helper `(aeval %%e %%y))))
 | `(aeval %%e (aexp.Le %%x %%y)) :=
            `(%%(evaluate_aeval_helper `(aeval %%e %%x))≤
              %%(evaluate_aeval_helper `(aeval %%e %%y)))
@@ -389,61 +391,83 @@ do { t ← target,
      --trace nt.to_raw_fmt,
      change nt }
 
-theorem xx: 1=(2,2).fst :=
-begin
-    do {
-        xxx ← target,
-        trace xxx.to_raw_fmt,
-        admit
-    }
-end
+--theorem xx: 1=(2,2).fst :=
+--begin
+--    do {
+--        xxx ← target,
+--        trace xxx.to_raw_fmt,
+--        admit
+--    }
+--end
 
-set_option eqn_compiler.max_steps 20000
+set_option eqn_compiler.max_steps 9999
 set_option timeout 10000
 
 meta def simplify_override_helper : expr → expr
 | `(λ st, (absCompose %%l %%r)
-          (prod.mk
-           (prod.fst st)
-           (override (prod.snd st) %%vv %%ee))) :=
+          (@prod.mk
+           (@prod.fst st)
+           (override (@prod.snd st) %%vv %%ee))) :=
   (expr.app (expr.app `(absCompose)
-      (expr.lam (name.variable) binder_info.default ``(ℕ)
+      (expr.lam "st" binder_info.default `(imp_state)
           (expr.app
             l
-            (expr.app (expr.app `(@prod.mk %%hhh %%eee)
-              (expr.app (expr.app (expr.app pf hhha) eeea) (expr.var 0)))
-              (expr.app (expr.app (expr.app `(override)
-                 (expr.app (expr.app (expr.app ps hhhb) eeeb)
-                 (expr.var 0))) vv) ee)
+            (expr.app (expr.app `(@prod.mk heap env)
+              (expr.app `(@prod.fst heap env) (expr.var 0)))
+              (expr.app (expr.app (expr.app `(@override)
+                 (expr.app `(@prod.snd heap env) (expr.var 0))) vv) ee)
               ))))
-      (expr.lam st b stt
+      (expr.lam "st" binder_info.default `(imp_state)
           (expr.app
-            r
-            (expr.app (expr.app (expr.app (expr.app pm hhh) eee)
-              (expr.app (expr.app (expr.app pf hhha) eeea) (expr.var 0)))
-              (expr.app (expr.app (expr.app `(override)
-                 (expr.app (expr.app (expr.app ps hhhb) eeeb)
-                 (expr.var 0))) vv) ee)
+            l
+            (expr.app (expr.app `(@prod.mk heap env)
+              (expr.app `(@prod.fst heap env) (expr.var 0)))
+              (expr.app (expr.app (expr.app `(@override)
+                 (expr.app `(@prod.snd heap env) (expr.var 0))) vv) ee)
               ))))
 | (expr.app a b) := expr.app (simplify_override_helper a) (simplify_override_helper b)
 | (expr.lam v b t e) := expr.lam v b (simplify_override_helper t) (simplify_override_helper e)
 | (expr.pi v b t e) := expr.pi v b (simplify_override_helper t) (simplify_override_helper e)
 | x := x
 
-meta def q : ℕ → (ℕ → ℕ)
-| _ := (λ (s:ℕ), s) 3.
+meta def simplify_override_helperb : expr → expr
+| `(λ st, (absExists (λ (v:%%t), %%e))
+          (@prod.mk (@prod.fst st) (override (@prod.snd st) %%vv %%ee))) :=
+      (expr.app `(@absExists %%t)
+                    (expr.lam "v" binder_info.default t
+                       (expr.lam "st" binder_info.default `(imp_state)
+                         (expr.app
+                           (expr.lower_vars (expr.lift_vars e 0 1) 2 1)
+                           (expr.app
+                             (expr.app
+                               `(@prod.mk heap env)
+                               (expr.app `(@prod.fst heap env) (expr.var 0)))
+                               (expr.app (expr.app (expr.app `(override)
+                                  (expr.app
+                                    `(@prod.snd heap env)
+                                    (expr.var 0)))
+                                  vv) ee))
+                          )
+                       )))
+| (expr.app a b) := expr.app (simplify_override_helperb a) (simplify_override_helperb b)
+| (expr.lam v b t e) := expr.lam v b (simplify_override_helper t) (simplify_override_helperb e)
+| (expr.pi v b t e) := expr.pi v b (simplify_override_helperb t) (simplify_override_helperb e)
+| x := x
 
-theorem test : 1=2 :=
-begin
-    do {
-      a ← some (q 0),
-      trace "abc",
-      --trace (a.to_raw_format),
-      b ← to_expr (``(λ (sss:ℕ), sss)),
-      trace b.to_raw_fmt,
-      admit
-    }
-end
+--meta def q : ℕ → (ℕ → ℕ)
+--| _ := (λ (s:ℕ), s) 3.
+
+--theorem test : 1=2 :=
+--begin
+--    do {
+--      a ← some (q 0),
+--      trace "abc",
+--      --trace (a.to_raw_format),
+--      b ← to_expr (``(λ (sss:ℕ), sss)),
+--      trace b.to_raw_fmt,
+--      admit
+--    }
+--end
 
 meta def simplify_override_helper' : expr → expr
 | (expr.lam st b stt
@@ -673,7 +697,7 @@ do { t ← target,
      tgt ← instantiate_mvars t,
      trace "input",
      trace tgt.to_raw_fmt,
-     nt ← some (simplify_override_helper2 tgt),
+     nt ← some (simplify_override_helperb tgt),
      trace "output",
      trace nt.to_raw_fmt,
      trace "testit112",
@@ -703,3 +727,41 @@ do { t ← target,
      trace "testit",
      assert `xxx nt,swap,admit
     }
+
+
+@[simp] theorem dist_conj (a : absState) (b : absState) (f : imp_state → imp_state) (st : imp_state) :
+    (absCompose a b) (f st) = (absCompose (λ st, a (f st)) (λ st, b (f st))) st :=
+begin
+    admit
+end
+
+@[simp] theorem dist_exists_lambda (t:Type) (a: imp_state → Prop) (st : imp_state) (f : imp_state → imp_state):
+    absExists (λ (v:t), a) (f st)=absExists (λ (v:t), (λ st, a (f st))) st :=
+begin
+    admit
+end
+
+@[simp] theorem dist_absPredicate (f: env → Prop) (v : ident)
+    (e : ℕ) (st : imp_state) :
+    absPredicate f (override_state v e st)=
+    (absPredicate (λ env, f (override env v e)) st)  :=
+begin
+    admit
+end
+
+@[simp] theorem dist_absTree (r : env → ℕ) (s : ℕ) (f : list ℕ)
+                             (st : imp_state) (v : ident) (e : ℕ)
+                             (vv : Value) :
+    (absTree r s f vv) (override_state v e st)=
+    (absTree (λ ee, r (override ee v e)) s f vv) st :=
+begin
+    admit
+end
+
+@[simp] theorem dist_absExistsAbsTree (r : env → ℕ) (s : ℕ) (f : list ℕ)
+                             (st : imp_state) (v : ident) (e : ℕ) :
+    absExists (absTree r s f) (override_state v e st)=
+    absExists (absTree (λ ee, r (override ee v e)) s f) st :=
+begin
+    admit
+end
