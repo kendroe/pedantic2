@@ -41,21 +41,37 @@ open monad
 open expr
 open smt_tactic
 
+--@[simp] theorem dist_conj1 {a : absState} {b:absState} (st : imp_state) {v:ident} {e:ℕ} :
+--       (a**b) st =
+--       a st ** b st :=
+--begin
+--    admit
+--end
+
+--@[simp] theorem dist_conj2 {a : absState} {b:absState} {v:ident} {e:ℕ} :
+--       (λ (st : imp_state), (a**b) (st.fst, override (st.snd) v e))=
+--       (absCompose (λ (st : imp_state), a (st.fst, override (st.snd) v e))
+--          (λ (st : imp_state), b (st.fst, override (st.snd) v e))) :=
+--begin
+--    admit
+--end
+
+@[simp] theorem dist_exists {t} {a : absState} {v:ident} {e:ℕ} :
+       (λ (st : imp_state), 
+              (@absExists t (λ (x:t), a) (st.fst, override (st.snd) v e)))=
+       @absExists t (λ (x:t), (λ (st : imp_state), a (st.fst, override (st.snd) v e))) :=
+begin
+    admit
+end
+
 theorem initWorks: {{precondition}} initCode {{ afterAssigns }} := begin
     unfold initCode, unfold precondition,
     apply strengthenPost,
     apply compose, apply compose,
-    apply assignPropagate,
-simp [aeval, A0,A1,A2,A3,A4,A5,A6], simplify_override,
+    apply assignPropagate, 
+    dsimp [aeval, A0,A1,A2,A3,A4,A5,A6], simp,
     simplify_override2, simplify_override_predicate,
-    simplify_tree, conv
-    begin
-    end,
-
-    apply assignPropagate,
-    evaluate_aeval, apply assignPropagate, evaluate_aeval,
-
-    intros s a, rw [absExists] at a,
+    simplify_tree,
 end.
 
 

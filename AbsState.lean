@@ -347,14 +347,14 @@ inductive updateRec : list (nat × Value) → ℕ → list Value → list Value 
           updateRec vl (n+1) or nr →
           updateRec vl n ((Value.ListValue ((Value.NatValue x)::rr))::or) ((Value.NatValue x)::or).
 
---def nth {t} : ℕ → list t → t → t
---| 0 (f::r) d := f
---| (n+1) (f::r) d := nth n r d
---| _ _ d := d.
+def nth {t} : ℕ → list t → t → t
+| 0 (f::r) d := f
+| (n+1) (f::r) d := nth n r d
+| _ _ d := d.
 
---def nthval: ℕ → Value → Value
---| n (Value.ListValue l) := nth x l Value.NoValue
---| _ _ := Value.NoValue
+def nthval: ℕ → Value → Value
+| n (Value.ListValue l) := nth x l Value.NoValue
+| _ _ := Value.NoValue
 
 inductive Path : ℕ → ℕ → list ℕ → Value → Value → Prop
   | PathNext : ∀ (root : ℕ) (size : ℕ) indices (baseData : Value) rec vals ivals rec2,

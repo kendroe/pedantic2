@@ -350,36 +350,23 @@ meta def evaluate_aeval_helper : expr → expr
 | `(aeval %%e (aexp.Num %%x)) := x
 | `(aeval %%e (aexp.Var %%v)) := e v
 | `(aeval %%e (aexp.Plus %%x %%y)) :=
-       (app (app 
-           `(nat.add)
-            (evaluate_aeval_helper `(aeval %%e %%x)))
-            (evaluate_aeval_helper `(aeval %%e %%y)))
+            `(%%(evaluate_aeval_helper `(aeval %%e %%x))+
+              %%(evaluate_aeval_helper `(aeval %%e %%y)))
 | `(aeval %%e (aexp.Minus %%x %%y)) :=
-       (app (app 
-           `(nat.sub)
-            (evaluate_aeval_helper `(aeval %%e %%x)))
-            (evaluate_aeval_helper `(aeval %%e %%y)))
+            `(%%(evaluate_aeval_helper `(aeval %%e %%x))-
+              %%(evaluate_aeval_helper `(aeval %%e %%y)))
 | `(aeval %%e (aexp.Mult %%x %%y)) :=
-       (app (app 
-           `(nat.mul)
-            (evaluate_aeval_helper `(aeval %%e %%x)))
-            (evaluate_aeval_helper `(aeval %%e %%y)))
---| `(aeval %%e (aexp.Eq %%x %%y)) :=
---       (app (app 
---           `(beq_nat)
---            (evaluate_aeval_helper `(aeval %%e %%x)))
---            (evaluate_aeval_helper `(aeval %%e %%y)))
---| `(aeval %%e (aexp.Le %%x %%y)) :=
---       (app (app 
---           `(ble_nat)
---            (evaluate_aeval_helper `(aeval %%e %%x)))
---            (evaluate_aeval_helper `(aeval %%e %%y)))
---| `(aeval %%e (aexp.ALand %%x %%y)) :=
---      (app (app (app `(ite)
---                     (app (app `(beq_nat) `(aeval %%e %%x)) `(0)))
---                     `(0))
---                     `(aeval %%e %%y))
-| `(aeval %%e (aexp.Land %%x %%y)) := `(if (aeval %%e %%x)=0 then 0 else (aeval %%e %%y))
+            `(%%(evaluate_aeval_helper `(aeval %%e %%x))*
+              %%(evaluate_aeval_helper `(aeval %%e %%y)))
+| `(aeval %%e (aexp.Eq %%x %%y)) :=
+           `(%%(evaluate_aeval_helper `(aeval %%e %%x))=
+             %%(evaluate_aeval_helper `(aeval %%e %%y)))
+| `(aeval %%e (aexp.Le %%x %%y)) :=
+           `(%%(evaluate_aeval_helper `(aeval %%e %%x))≤
+             %%(evaluate_aeval_helper `(aeval %%e %%y)))
+| `(aeval %%e (aexp.Land %%x %%y)) :=
+      `(if ((aeval %%e %%x)=0) then 0 else (aeval %%e %%y))
+--| `(aeval %%e (aexp.Land %%x %%y)) := `(if (aeval %%e %%x)=0 then 0 else (aeval %%e %%y))
 | `(aeval %%e (aexp.Lor %%x %%y)) := `(if (aeval %%e %%x)=0 then (aeval %%e %%y) else (aeval %%e %%x))
 | `(aeval %%e (aexp.Lnot %%x)) := `(if (aeval %%e %%x)=0 then 1 else 0)
 | `(aeval %%e A0) := `(0)
@@ -415,6 +402,50 @@ set_option eqn_compiler.max_steps 20000
 set_option timeout 10000
 
 meta def simplify_override_helper : expr → expr
+| `(λ st, (absCompose %%l %%r)
+          (prod.mk
+           (prod.fst st)
+           (override (prod.snd st) %%vv %%ee))) :=
+  (expr.app (expr.app `(absCompose)
+      (expr.lam (name.variable) binder_info.default ``(ℕ)
+          (expr.app
+            l
+            (expr.app (expr.app `(@prod.mk %%hhh %%eee)
+              (expr.app (expr.app (expr.app pf hhha) eeea) (expr.var 0)))
+              (expr.app (expr.app (expr.app `(override)
+                 (expr.app (expr.app (expr.app ps hhhb) eeeb)
+                 (expr.var 0))) vv) ee)
+              ))))
+      (expr.lam st b stt
+          (expr.app
+            r
+            (expr.app (expr.app (expr.app (expr.app pm hhh) eee)
+              (expr.app (expr.app (expr.app pf hhha) eeea) (expr.var 0)))
+              (expr.app (expr.app (expr.app `(override)
+                 (expr.app (expr.app (expr.app ps hhhb) eeeb)
+                 (expr.var 0))) vv) ee)
+              ))))
+| (expr.app a b) := expr.app (simplify_override_helper a) (simplify_override_helper b)
+| (expr.lam v b t e) := expr.lam v b (simplify_override_helper t) (simplify_override_helper e)
+| (expr.pi v b t e) := expr.pi v b (simplify_override_helper t) (simplify_override_helper e)
+| x := x
+
+meta def q : ℕ → (ℕ → ℕ)
+| _ := (λ (s:ℕ), s) 3.
+
+theorem test : 1=2 :=
+begin
+    do {
+      a ← some (q 0),
+      trace "abc",
+      --trace (a.to_raw_format),
+      b ← to_expr (``(λ (sss:ℕ), sss)),
+      trace b.to_raw_fmt,
+      admit
+    }
+end
+
+meta def simplify_override_helper' : expr → expr
 | (expr.lam st b stt
       (expr.app
         (expr.app
@@ -456,9 +487,9 @@ meta def simplify_override_helper : expr → expr
                  (expr.app (expr.app (expr.app ps hhhb) eeeb)
                  (expr.var 0))) vv) ee)
               ))))
-| (expr.app a b) := expr.app (simplify_override_helper a) (simplify_override_helper b)
-| (expr.lam v b t e) := expr.lam v b (simplify_override_helper t) (simplify_override_helper e)
-| (expr.pi v b t e) := expr.pi v b (simplify_override_helper t) (simplify_override_helper e)
+| (expr.app a b) := expr.app (simplify_override_helper' a) (simplify_override_helper' b)
+| (expr.lam v b t e) := expr.lam v b (simplify_override_helper' t) (simplify_override_helper' e)
+| (expr.pi v b t e) := expr.pi v b (simplify_override_helper' t) (simplify_override_helper' e)
 | x := x
 
 meta def simplify_override_helper2 : expr → expr
